@@ -48,6 +48,9 @@ export default function PoolsPage() {
     const [ratioSel, setRatioSel] = useState<RatioSel>("1:1");
     const [customRatioA, setCustomRatioA] = useState("3");
     const [customRatioB, setCustomRatioB] = useState("1");
+    const [liquidityModalPool, setLiquidityModalPool] = useState<PoolKeyKey | null>(null);
+    const [liqAmount0, setLiqAmount0] = useState("");
+    const [liqAmount1, setLiqAmount1] = useState("");
 
     const fetchPoolData = async () => {
         try {
@@ -71,7 +74,7 @@ export default function PoolsPage() {
                     const sqrtPriceX96 = slot0.sqrtPriceX96;
                     const tick = Number(slot0.tick);
                     
-                    if (sqrtPriceX96 === 0n) {
+                    if (sqrtPriceX96 === BigInt(0)) {
                          throw new Error("Pool sqrtPrice is 0 (Uninitialized)");
                     }
 
@@ -185,7 +188,7 @@ export default function PoolsPage() {
                 hooks: ADDRESSES.VeilBook // Hardcoded as requested
             });
 
-            const sqrtPriceX96 = BigInt(Math.floor(Math.sqrt(finalRatio) * 2**96));
+            const sqrtPriceX96 = BigInt(Math.floor(Math.sqrt(finalRatio) * Math.pow(2, 96)));
             console.log({poolKey, sqrtPriceX96})
             const tx = await poolManager.initialize(poolKey, sqrtPriceX96);
             toast.info("Initializing Custom Pool...", { autoClose: false, toastId: "init-custom" });
@@ -205,7 +208,41 @@ export default function PoolsPage() {
         }
     };
 
-    const handleAddLiquidity = async (poolIdKey: string) => {
+    // Sync function for Liquidity Provision
+    const syncLiquidityAmounts = async (val: string, isToken0: boolean) => {
+        if (!liquidityModalPool || !val || isNaN(Number(val))) return;
+        
+        try {
+            const meta = POOL_KEYS[liquidityModalPool];
+            let provider;
+            if (typeof window !== "undefined" && window.ethereum) {
+                provider = new BrowserProvider(window.ethereum);
+            } else {
+                provider = new ethers.JsonRpcProvider("https://rpc.sepolia.org");
+            }
+            const stateView = new Contract(ADDRESSES.StateView, StateViewABI, provider);
+            const slot0 = await stateView.getSlot0(computePoolId(meta));
+            const sqrtPriceX96 = BigInt(slot0.sqrtPriceX96);
+
+            const Q96 = BigInt(2) ** BigInt(96);
+            if (isToken0) {
+                const amount0 = ethers.parseUnits(val, meta.currency0Decimals);
+                // amount1 = amount0 * (sqrtPriceX96 / Q96)^2
+                const amount1 = (amount0 * sqrtPriceX96 * sqrtPriceX96) / (Q96 * Q96);
+                setLiqAmount1(ethers.formatUnits(amount1, meta.currency1Decimals));
+            } else {
+                const amount1 = ethers.parseUnits(val, meta.currency1Decimals);
+                // amount0 = amount1 / (sqrtPriceX96 / Q96)^2  => amount1 * Q96^2 / sqrtPriceX96^2
+                const amount0 = (amount1 * Q96 * Q96) / (sqrtPriceX96 * sqrtPriceX96);
+                setLiqAmount0(ethers.formatUnits(amount0, meta.currency0Decimals));
+            }
+        } catch (e) {
+            console.error("Sync error", e);
+        }
+    };
+
+    const handleAddLiquidity = async () => {
+         if (!liquidityModalPool) return;
          if (!isConnected || !address || !window.ethereum) {
               toast.error("Connect wallet first!");
               return;
@@ -217,50 +254,61 @@ export default function PoolsPage() {
          }
 
          try {
-             setActionLoading(`add-${poolIdKey}`);
-             
-             const amountStr = prompt("Enter the broad liquidity delta (e.g. 1000):", "1000");
-             if (!amountStr || isNaN(Number(amountStr)) || Number(amountStr) <= 0) {
-                 setActionLoading(null);
-                 toast.info("Liquidity addition cancelled.");
-                 return;
-             }
+             setActionLoading(`add-${liquidityModalPool}`);
              
              const provider = new BrowserProvider(window.ethereum);
              const signer = await provider.getSigner();
              const router = new Contract(ADDRESSES.PoolModifyLiquidityTest, PoolModifyLiquidityTestABI, signer);
+             const stateView = new Contract(ADDRESSES.StateView, StateViewABI, provider);
 
-             const poolMeta = POOL_KEYS[poolIdKey as PoolKeyKey];
+             const poolMeta = POOL_KEYS[liquidityModalPool];
              const poolKey = getPoolKeyOnly(poolMeta);
+             const poolId = computePoolId(poolMeta);
 
-             const liquidityDelta = ethers.parseUnits(amountStr, poolMeta.currency1Decimals);
+             const slot0 = await stateView.getSlot0(poolId);
+             const sqrtPriceX96 = slot0.sqrtPriceX96;
+
+             const amount0 = ethers.parseUnits(liqAmount0, poolMeta.currency0Decimals);
+             const amount1 = ethers.parseUnits(liqAmount1, poolMeta.currency1Decimals);
+
+             const { getLiquidityDelta } = await import("@/lib/math");
+             const liquidityDelta = getLiquidityDelta(
+                 amount0,
+                 amount1,
+                 sqrtPriceX96,
+                 -6000,
+                 6000
+             );
 
              const token0 = new Contract(poolMeta.currency0, MockERC20ABI, signer);
              const token1 = new Contract(poolMeta.currency1, MockERC20ABI, signer);
 
-             toast.info("Approving tokens...", { autoClose: false, toastId: `approve-${poolIdKey}` });
-             await token0.approve(ADDRESSES.PoolModifyLiquidityTest, ethers.MaxUint256);
-             await token1.approve(ADDRESSES.PoolModifyLiquidityTest, ethers.MaxUint256);
-             toast.dismiss(`approve-${poolIdKey}`);
-
-             const params = {
+              const params = {
                  tickLower: -6000,
                  tickUpper: 6000,
                  liquidityDelta: liquidityDelta,
                  salt: ethers.ZeroHash
              };
+             console.log({poolKey, params})
 
-             const tx = await router.modifyLiquidity(poolKey, params, "0x", { value: 0 });
-             toast.info("Adding Liquidity to Pool...", { autoClose: false, toastId: `add-${poolIdKey}` });
+             toast.info("Approving tokens...", { autoClose: false, toastId: `approve-${liquidityModalPool}` });
+             await token0.approve(ADDRESSES.PoolModifyLiquidityTest, amount0);
+             await token1.approve(ADDRESSES.PoolModifyLiquidityTest, amount1);
+             toast.dismiss(`approve-${liquidityModalPool}`);
+
+            
+             const tx = await router.modifyLiquidity(poolKey, params, "0x");
+             toast.info("Adding Liquidity to Pool...", { autoClose: false, toastId: `add-${liquidityModalPool}` });
              await tx.wait();
 
-             toast.dismiss(`add-${poolIdKey}`);
+             toast.dismiss(`add-${liquidityModalPool}`);
              toast.success("Liquidity Added!");
+             setLiquidityModalPool(null);
              fetchPoolData();
          } catch (e: any) {
              console.error(e);
-             toast.dismiss(`approve-${poolIdKey}`);
-             toast.dismiss(`add-${poolIdKey}`);
+             toast.dismiss(`approve-${liquidityModalPool}`);
+             toast.dismiss(`add-${liquidityModalPool}`);
              toast.error(e?.reason || e?.message || "Add liquidity failed");
          } finally {
              setActionLoading(null);
@@ -272,7 +320,7 @@ export default function PoolsPage() {
             onClick={onClick}
             className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
                 active 
-                ? "bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.15)]" 
+                ? "bg-white/20 text-white border border-white/50 shadow-[0_0_15px_rgba(255,255,255,0.15)]" 
                 : "bg-black/40 text-zinc-500 border border-zinc-800 hover:text-zinc-300 hover:border-zinc-600"
             }`}
         >
@@ -284,7 +332,7 @@ export default function PoolsPage() {
         <div className="flex flex-col items-center justify-start min-h-[80vh] w-full max-w-5xl mx-auto py-10 space-y-12">
             
             <div className="space-y-4 text-center">
-                <div className="inline-flex items-center justify-center rounded-full bg-yellow-500/10 p-4 text-yellow-500 mb-2 border border-yellow-500/20">
+                <div className="inline-flex items-center justify-center rounded-full bg-white/10 p-4 text-white mb-2 border border-white/20">
                     <Activity className="h-8 w-8" />
                 </div>
                 <h1 className="text-4xl font-bold tracking-tight text-white">Active Pools</h1>
@@ -296,8 +344,8 @@ export default function PoolsPage() {
             {/* Custom Pool Initialization Form */}
             <div className="w-full bg-zinc-900/40 border border-zinc-800 rounded-3xl p-6 md:p-8 space-y-8 backdrop-blur-sm relative overflow-hidden">
                 <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                        <Settings2 className="h-5 w-5 text-yellow-500" />
+                    <div className="p-2 bg-white/10 rounded-lg border border-white/20">
+                        <Settings2 className="h-5 w-5 text-white" />
                     </div>
                     <h2 className="text-2xl font-bold text-white tracking-tight">Initialize Custom Pool</h2>
                 </div>
@@ -310,7 +358,7 @@ export default function PoolsPage() {
                         <select 
                             value={initToken0} 
                             onChange={e=>setInitToken0(e.target.value)}
-                            className="w-full bg-black/60 border border-zinc-800 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-yellow-500/50 appearance-none font-medium"
+                            className="w-full bg-black/60 border border-zinc-800 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-white/50 appearance-none font-medium"
                         >
                             {AVAILABLE_TOKENS.map(t => <option key={`t0-${t.symbol}`} value={t.address}>{t.symbol}</option>)}
                         </select>
@@ -320,7 +368,7 @@ export default function PoolsPage() {
                         <select 
                             value={initToken1} 
                             onChange={e=>setInitToken1(e.target.value)}
-                            className="w-full bg-black/60 border border-zinc-800 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-yellow-500/50 appearance-none font-medium"
+                            className="w-full bg-black/60 border border-zinc-800 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-white/50 appearance-none font-medium"
                         >
                             {AVAILABLE_TOKENS.map(t => <option key={`t1-${t.symbol}`} value={t.address}>{t.symbol}</option>)}
                         </select>
@@ -340,7 +388,7 @@ export default function PoolsPage() {
                                     value={customTickSpacing}
                                     onChange={(e) => setCustomTickSpacing(e.target.value)}
                                     placeholder="200"
-                                    className="bg-black/60 border border-zinc-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-yellow-500/50 w-24 text-sm"
+                                    className="bg-black/60 border border-zinc-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-white/50 w-24 text-sm"
                                 />
                             )}
                         </div>
@@ -360,7 +408,7 @@ export default function PoolsPage() {
                                     value={customFeeTier}
                                     onChange={(e) => setCustomFeeTier(e.target.value)}
                                     placeholder="0.4"
-                                    className="bg-black/60 border border-zinc-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-yellow-500/50 w-24 text-sm"
+                                    className="bg-black/60 border border-zinc-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-white/50 w-24 text-sm"
                                 />
                             )}
                         </div>
@@ -381,7 +429,7 @@ export default function PoolsPage() {
                                         value={customRatioA}
                                         onChange={(e) => setCustomRatioA(e.target.value)}
                                         placeholder="3"
-                                        className="bg-black/60 border border-zinc-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-yellow-500/50 w-16 text-center text-sm"
+                                        className="bg-black/60 border border-zinc-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-white/50 w-16 text-center text-sm"
                                     />
                                     <span className="text-zinc-500 font-bold">:</span>
                                     <input 
@@ -389,7 +437,7 @@ export default function PoolsPage() {
                                         value={customRatioB}
                                         onChange={(e) => setCustomRatioB(e.target.value)}
                                         placeholder="1"
-                                        className="bg-black/60 border border-zinc-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-yellow-500/50 w-16 text-center text-sm"
+                                        className="bg-black/60 border border-zinc-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-white/50 w-16 text-center text-sm"
                                     />
                                 </div>
                             )}
@@ -412,7 +460,7 @@ export default function PoolsPage() {
                 <button 
                     onClick={handleInitializeCustom}
                     disabled={actionLoading !== null}
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-2xl transition-all disabled:opacity-50 text-lg shadow-[0_0_20px_rgba(234,179,8,0.2)] mt-8"
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-white text-black font-bold rounded-2xl transition-all disabled:opacity-50 text-lg shadow-[0_0_20px_rgba(255,255,255,0.2)] mt-8"
                 >
                     {actionLoading === "init-custom" ? <RefreshCw className="h-5 w-5 animate-spin"/> : <div></div>}
                     Initialize Pool
@@ -422,7 +470,7 @@ export default function PoolsPage() {
             {/* Displaying Known Pools below */}
             {loading ? (
                 <div className="flex items-center justify-center py-20 w-full">
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-yellow-500 border-t-transparent"></div>
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                 </div>
             ) : pools.length === 0 ? (
                 <div className="text-center py-20 text-zinc-500 bg-zinc-900/40 rounded-3xl w-full border border-zinc-800 mx-4">
@@ -433,12 +481,12 @@ export default function PoolsPage() {
                     {pools.map((pool) => (
                         <div
                             key={pool.id}
-                            className="group flex flex-col pt-6 bg-zinc-900/40 border border-zinc-800 rounded-3xl backdrop-blur-sm transition-all hover:border-yellow-500/50 hover:bg-zinc-900/80 w-full overflow-hidden"
+                            className="group flex flex-col pt-6 bg-zinc-900/40 border border-zinc-800 rounded-3xl backdrop-blur-sm transition-all hover:border-white/50 hover:bg-zinc-900/80 w-full overflow-hidden"
                         >
                             <div className="px-6 pb-6">
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="space-y-1 flex items-center gap-3">
-                                        <h3 className="text-2xl font-bold text-white group-hover:text-yellow-400 transition-colors">
+                                        <h3 className="text-2xl font-bold text-white group-hover:text-white transition-colors">
                                             {pool.label}
                                         </h3>
                                         {!pool.isInitialized && (
@@ -446,7 +494,7 @@ export default function PoolsPage() {
                                         )}
                                     </div>
                                     <div className="p-3 bg-zinc-900 rounded-xl border border-zinc-800">
-                                        <TrendingUp className="h-5 w-5 text-zinc-400 group-hover:text-yellow-500 transition-colors" />
+                                        <TrendingUp className="h-5 w-5 text-zinc-400 group-hover:text-white transition-colors" />
                                     </div>
                                 </div>
                                 <p className="text-sm font-medium text-zinc-500 mb-6">
@@ -478,17 +526,97 @@ export default function PoolsPage() {
                                     </span>
                                 ) : (
                                     <button 
-                                        onClick={() => handleAddLiquidity(pool.id)}
+                                        onClick={() => {
+                                            setLiquidityModalPool(pool.id as PoolKeyKey);
+                                            setLiqAmount0("");
+                                            setLiqAmount1("");
+                                        }}
                                         disabled={actionLoading !== null}
                                         className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/20 text-emerald-500 justify-center hover:text-black font-bold rounded-xl transition-all disabled:opacity-50"
                                     >
-                                        {actionLoading === `add-${pool.id}` ? <RefreshCw className="h-4 w-4 animate-spin"/> : <PlusCircle className="h-4 w-4" />}
+                                        <PlusCircle className="h-4 w-4" />
                                         Add Liquidity
                                     </button>
                                 )}
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Liquidity Modal */}
+            {liquidityModalPool && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl p-8 space-y-8 shadow-2xl relative">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-2xl font-bold text-white">Add Liquidity</h2>
+                            <button 
+                                onClick={() => setLiquidityModalPool(null)}
+                                className="text-zinc-500 hover:text-white"
+                            >
+                                <Activity className="h-6 w-6 rotate-45" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="p-4 bg-black/40 rounded-2xl border border-zinc-800 space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold text-white">{POOL_KEYS[liquidityModalPool].currency0Symbol}</span>
+                                    <input 
+                                        type="number"
+                                        value={liqAmount0}
+                                        onChange={(e) => {
+                                            setLiqAmount0(e.target.value);
+                                            syncLiquidityAmounts(e.target.value, true);
+                                        }}
+                                        placeholder="0.00"
+                                        className="bg-transparent text-right text-xl font-mono text-white focus:outline-none w-1/2"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center -my-3 relative z-10">
+                                <div className="bg-zinc-800 p-2 rounded-full border border-zinc-700">
+                                    <PlusCircle className="h-5 w-5 text-zinc-500" />
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-black/40 rounded-2xl border border-zinc-800 space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold text-white">{POOL_KEYS[liquidityModalPool].currency1Symbol}</span>
+                                    <input 
+                                        type="number"
+                                        value={liqAmount1}
+                                        onChange={(e) => {
+                                            setLiqAmount1(e.target.value);
+                                            syncLiquidityAmounts(e.target.value, false);
+                                        }}
+                                        placeholder="0.00"
+                                        className="bg-transparent text-right text-xl font-mono text-white focus:outline-none w-1/2"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-2">
+                             <div className="flex justify-between text-xs">
+                                 {/* <span className="text-zinc-500 uppercase font-bold">Range</span>
+                                 <span className="text-white font-mono">[-6000, 6000]</span> */}
+                             </div>
+                             <div className="flex justify-between text-xs">
+                                 <span className="text-zinc-500 uppercase font-bold">Current Price</span>
+                                 <span className="text-white font-mono">{pools.find(p=>p.id === liquidityModalPool)?.price} USDC</span>
+                             </div>
+                        </div>
+
+                        <button 
+                            onClick={handleAddLiquidity}
+                            disabled={actionLoading !== null || !liqAmount0 || !liqAmount1}
+                            className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-2xl transition-all disabled:opacity-50 text-lg shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                        >
+                            {actionLoading === `add-${liquidityModalPool}` ? <RefreshCw className="h-5 w-5 animate-spin mx-auto"/> : "Confirm Liquidity Provision"}
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

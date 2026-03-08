@@ -59,7 +59,7 @@ export default function FaucetParams() {
             const contract = new Contract(tokenAddress, MockERC20ABI, signer);
             
             // Mint 1000 tokens based on decimals
-            const amountToMint = ethers.parseUnits("1000", decimals);
+            const amountToMint = ethers.parseUnits("100000", decimals);
             
             const tx = await contract.mint(address, amountToMint);
             toast.info(`Minting 1000 ${symbol}... Please wait.`);
@@ -118,7 +118,7 @@ export default function FaucetParams() {
                                     Minting...
                                 </>
                             ) : (
-                                "Mint 1000 Tokens"
+                                "Mint 100k Tokens"
                             )}
                         </button>
                     </div>
@@ -126,8 +126,8 @@ export default function FaucetParams() {
             </div>
             
             {!isConnected && (
-                <p className="text-sm text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/30 px-6 py-3 rounded-lg flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                <p className="text-sm text-white/80 bg-white/10 border border-white/30 px-6 py-3 rounded-lg flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-white animate-pulse"></span>
                     Please connect your wallet to mint tokens.
                 </p>
             )}

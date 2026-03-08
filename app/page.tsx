@@ -10,8 +10,8 @@ export default function Home() {
       
       {/* Hero Section */}
       <section className="max-w-4xl space-y-6">
-        <div className="inline-flex items-center rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-sm font-medium text-yellow-400 mb-4 backdrop-blur-md">
-          <span className="flex h-2 w-2 rounded-full bg-yellow-400 mr-2 animate-pulse"></span>
+        <div className="inline-flex items-center rounded-full border border-white/30 bg-white/10 px-3 py-1 text-sm font-medium text-white mb-4 backdrop-blur-md">
+          <span className="flex h-2 w-2 rounded-full bg-white mr-2 animate-pulse"></span>
           Live on Sepolia Testnet
         </div>
         <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-zinc-200 to-zinc-600">
@@ -42,8 +42,8 @@ export default function Home() {
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mt-16 px-4">
         
         {/* Feature 1 */}
-        <div className="group rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 backdrop-blur-sm transition-all hover:border-yellow-500/50 hover:bg-zinc-900/80">
-          <div className="mb-4 inline-flex rounded-xl bg-yellow-500/10 p-3 text-yellow-500">
+        <div className="group rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 backdrop-blur-sm transition-all hover:border-white/50 hover:bg-zinc-900/80">
+          <div className="mb-4 inline-flex rounded-xl bg-white/10 p-3 text-white">
             <Lock className="h-6 w-6" />
           </div>
           <h3 className="mb-2 text-xl font-bold text-white">Confidential Orders</h3>
@@ -53,8 +53,8 @@ export default function Home() {
         </div>
 
         {/* Feature 2 */}
-        <div className="group rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 backdrop-blur-sm transition-all hover:border-yellow-500/50 hover:bg-zinc-900/80">
-          <div className="mb-4 inline-flex rounded-xl bg-yellow-500/10 p-3 text-yellow-500">
+        <div className="group rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 backdrop-blur-sm transition-all hover:border-white/50 hover:bg-zinc-900/80">
+          <div className="mb-4 inline-flex rounded-xl bg-white/10 p-3 text-white">
             <Shield className="h-6 w-6" />
           </div>
           <h3 className="mb-2 text-xl font-bold text-white">Zero MEV</h3>
@@ -64,8 +64,8 @@ export default function Home() {
         </div>
 
         {/* Feature 3 */}
-        <div className="group rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 backdrop-blur-sm transition-all hover:border-yellow-500/50 hover:bg-zinc-900/80">
-          <div className="mb-4 inline-flex rounded-xl bg-yellow-500/10 p-3 text-yellow-500">
+        <div className="group rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 backdrop-blur-sm transition-all hover:border-white/50 hover:bg-zinc-900/80">
+          <div className="mb-4 inline-flex rounded-xl bg-white/10 p-3 text-white">
             <Zap className="h-6 w-6" />
           </div>
           <h3 className="mb-2 text-xl font-bold text-white">P2P Settlement</h3>
@@ -78,8 +78,8 @@ export default function Home() {
 
       {/* Decorative Background Glows */}
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black opacity-80" />
-      <div className="pointer-events-none fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-yellow-500/5 blur-[120px] -z-10" />
-      <div className="pointer-events-none fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-yellow-500/5 blur-[120px] -z-10" />
+      <div className="pointer-events-none fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-white/5 blur-[120px] -z-10" />
+      <div className="pointer-events-none fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-white/5 blur-[120px] -z-10" />
       
     </div>
   );

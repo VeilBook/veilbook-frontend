@@ -6,7 +6,7 @@ import { useAccount } from "wagmi";
 import { toast } from "react-toastify";
 import { ADDRESSES, VeilBookABI } from "@/lib/constants";
 import { useFhe } from "@/components/FheProvider";
-import { ListChecks, XCircle, DownloadCloud, Unlock } from "lucide-react";
+import { ListChecks, XCircle, DownloadCloud, Unlock, Lock } from "lucide-react";
 
 interface OrderData {
     orderId: string;
@@ -297,7 +297,7 @@ export default function OrdersPage() {
                     <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
                 </div>
             ) : !isConnected ? (
-                <div className="text-center py-10 px-6 rounded-2xl w-full max-w-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-500">
+                <div className="text-center py-10 px-6 rounded-2xl w-full max-w-lg bg-white/10 border border-white/30 text-white">
                     <p className="font-semibold">Connect Wallet to view your orders.</p>
                 </div>
             ) : orders.length === 0 ? (
@@ -341,7 +341,7 @@ export default function OrdersPage() {
                                         {new Date(order.timestamp).toLocaleString()}
                                     </div>
                                     <p className="text-white font-semibold flex items-center gap-2 mt-2">
-                                        Tick Execution: <span className="font-mono bg-zinc-800 px-2 py-0.5 rounded text-yellow-400">{order.tick}</span>
+                                        Tick Execution: <span className="font-mono bg-zinc-800 px-2 py-0.5 rounded text-white">{order.tick}</span>
                                     </p>
                                 </div>
 
@@ -435,7 +435,7 @@ export default function OrdersPage() {
                                                 <td className="p-4 font-mono text-xs text-zinc-300">
                                                     {log.orderId.substring(0, 10)}...{log.orderId.substring(60)}
                                                 </td>
-                                                <td className="p-4 text-sm text-zinc-400 font-mono text-yellow-500/80">{log.blockNumber}</td>
+                                                <td className="p-4 text-sm text-zinc-400 font-mono text-white/80">{log.blockNumber}</td>
                                                 <td className="p-4 text-right">
                                                     <a href={`https://sepolia.etherscan.io/tx/${log.txHash}`} target="_blank" rel="noopener noreferrer" className="text-zinc-500 hover:text-white transition-colors text-xs font-semibold uppercase tracking-wider underline">Link</a>
                                                 </td>

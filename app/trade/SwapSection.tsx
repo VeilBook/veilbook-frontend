@@ -120,7 +120,7 @@ export function SwapSection({ selectedPool, setSelectedPool, zeroForOne, setZero
                     <select 
                         value={selectedPool}
                         onChange={(e) => setSelectedPool(e.target.value as PoolKeyKey)}
-                        className="bg-black/60 border border-zinc-800 text-white px-3 py-1.5 rounded-lg focus:outline-none focus:border-yellow-500/50 appearance-none text-sm transition-colors"
+                        className="bg-black/60 border border-zinc-800 text-white px-3 py-1.5 rounded-lg focus:outline-none focus:border-white/50 appearance-none text-sm transition-colors"
                     >
                         {Object.entries(POOL_KEYS).map(([key, meta]) => (
                             <option key={key} value={key}>{meta.label}</option>

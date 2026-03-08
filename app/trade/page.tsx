@@ -141,7 +141,7 @@ export default function TradePage() {
             {/* Analytics Header */}
             <div className="w-full bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 flex justify-between items-center mb-6 shadow-md mt-4">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-500">
+                    <div className="p-2 bg-white/10 rounded-lg text-white">
                         <Activity className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col">
@@ -151,16 +151,16 @@ export default function TradePage() {
                 </div>
                 <div className="flex flex-col text-right">
                     <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Current Tick</span>
-                    <span className="text-yellow-400 font-mono text-sm">{poolTick}</span>
+                    <span className="text-white font-mono text-sm">{poolTick}</span>
                 </div>
             </div>
 
             <div className="w-full bg-zinc-900/40 border border-zinc-800 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-2xl relative overflow-hidden">
                 {/* Decorative glow inside the form */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-500/10 blur-[80px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
 
                 <h1 className="text-2xl font-bold tracking-tight text-white mb-8 flex items-center gap-2">
-                    <Lock className="h-5 w-5 text-yellow-500" />
+                    <Lock className="h-5 w-5 text-white" />
                     Place Confidential Order
                 </h1>
 
@@ -196,7 +196,7 @@ export default function TradePage() {
                                 value={tickContent}
                                 onChange={(e) => setTickContent(e.target.value)}
                                 placeholder="60"
-                                className="w-full bg-black/60 border border-zinc-800 text-white p-4 rounded-xl focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 transition-colors font-mono text-lg"
+                                className="w-full bg-black/60 border border-zinc-800 text-white p-4 rounded-xl focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/50 transition-colors font-mono text-lg"
                             />
                             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 text-xs font-mono">TICK</div>
                         </div>
@@ -206,7 +206,7 @@ export default function TradePage() {
                     <div className="space-y-3">
                         <div className="flex justify-between items-baseline">
                             <label className="text-xs uppercase tracking-wider text-zinc-500 font-bold ml-1">Amount</label>
-                            <div className="flex gap-1 items-center bg-yellow-500/10 border border-yellow-500/20 px-2 pl-1.5 py-0.5 rounded text-[10px] font-medium text-yellow-500">
+                            <div className="flex gap-1 items-center bg-white/10 border border-white/20 px-2 pl-1.5 py-0.5 rounded text-[10px] font-medium text-white">
                                 <Lock className="h-3 w-3" /> FHE Encrypted
                             </div>
                         </div>
@@ -216,7 +216,7 @@ export default function TradePage() {
                                 value={amountContent}
                                 onChange={(e) => setAmountContent(e.target.value)}
                                 placeholder="0.00"
-                                className="w-full bg-black/60 border border-zinc-800 text-white p-4 rounded-xl focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 transition-colors font-mono text-2xl"
+                                className="w-full bg-black/60 border border-zinc-800 text-white p-4 rounded-xl focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/50 transition-colors font-mono text-2xl"
                             />
                             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                                 <span className="font-semibold text-zinc-300 bg-zinc-800 px-3 py-1 rounded-md text-sm border border-zinc-700">
@@ -236,7 +236,7 @@ export default function TradePage() {
                     <button
                         onClick={handlePlaceOrder}
                         disabled={placingOrder || !isConnected}
-                        className="w-full mt-4 flex items-center justify-center gap-2 py-4 px-4 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40"
+                        className="w-full mt-4 flex items-center justify-center gap-2 py-4 px-4 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-white/20 hover:shadow-white/40"
                     >
                         {placingOrder ? (
                             <>
