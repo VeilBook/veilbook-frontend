@@ -72,3 +72,9 @@ export function getLiquidityDelta(
       return liq0 < liq1 ? liq0 : liq1;
   }
 }
+
+export function getTickFromPrice(price: number, spacing: number): number {
+  if (price <= 0) return 0;
+  const tick = Math.log(price) / Math.log(1.0001);
+  return Math.round(tick / spacing) * spacing;
+}

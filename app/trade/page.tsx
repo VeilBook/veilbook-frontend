@@ -4,10 +4,10 @@ import React, { useState, useEffect } from "react";
 import { ethers, BrowserProvider, Contract } from "ethers";
 import { useAccount } from "wagmi";
 import { toast } from "react-toastify";
-import { ADDRESSES, POOL_KEYS, VeilBookABI, PoolKeyKey, EncryptedERC20ABI, StateViewABI } from "@/lib/constants";
-import { computePoolId, getHumanReadablePrice } from "@/lib/math";
-import { useFhe } from "@/components/FheProvider";
-import { RefreshCw, Lock, AlertCircle, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { RefreshCw, Lock, AlertCircle, TrendingUp, TrendingDown, Activity, ExternalLink } from "lucide-react";
+import { computePoolId, getHumanReadablePrice, getPoolKeyOnly, getTickFromPrice } from "@/lib/math";
+import { ADDRESSES, POOL_KEYS, VeilBookABI, PoolKeyKey, EncryptedERC20ABI, StateViewABI, MockERC20ABI } from "@/lib/constants";
+import { useFhe } from '@/components/FheProvider';
 
 import { SwapSection } from "./SwapSection";
 
@@ -16,7 +16,7 @@ export default function TradePage() {
     const fhe = useFhe();
     const [selectedPool, setSelectedPool] = useState<PoolKeyKey>("NBL_USDC");
     const [zeroForOne, setZeroForOne] = useState<boolean>(true); // true = sell token for USDC, false = buy token with USDC
-    const [tickContent, setTickContent] = useState<string>("");
+    const [priceContent, setPriceContent] = useState<string>("");
     const [amountContent, setAmountContent] = useState<string>("");
     const [placingOrder, setPlacingOrder] = useState<boolean>(false);
 
@@ -67,11 +67,14 @@ export default function TradePage() {
             return;
         }
 
-        const inputTick = Number(tickContent);
-        if (isNaN(inputTick) || inputTick % 60 !== 0) {
-            toast.error("Tick must be a multiple of 60 (e.g. 60, 120, -60)");
+        const inputPrice = Number(priceContent);
+        if (isNaN(inputPrice) || inputPrice <= 0) {
+            toast.error("Please enter a valid limit price");
             return;
         }
+
+        const targetTick = getTickFromPrice(inputPrice, 60);
+        console.log({targetTick})
 
         const amount = Number(amountContent);
         if (isNaN(amount) || amount <= 0) {
@@ -81,48 +84,84 @@ export default function TradePage() {
 
         try {
             setPlacingOrder(true);
+            console.log({fhe})
             const provider = new BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const veilBook = new Contract(ADDRESSES.VeilBook, VeilBookABI, signer);
 
-            // Compute depositCurrency based on direction
             const depositCurrency = zeroForOne ? poolMeta.currency0 : poolMeta.currency1;
+            const depositSymbol = zeroForOne ? poolMeta.currency0Symbol : poolMeta.currency1Symbol;
             const parsedAmount = ethers.parseUnits(amount.toString(), inputDecimals);
 
-            // 1. Fetch Encrypted Token address for approval
-            toast.info("Approving Zama encrypted operator...", { autoClose: 2000 });
             const poolId = computePoolId(poolMeta);
             const encTokenAddr = await veilBook.getEncryptedToken(poolId, depositCurrency);
+            console.log({encTokenAddr, depositCurrency});
 
+            // 1. Approve Token to Protocol
+            toast.info(`Approving ${depositSymbol}...`, { autoClose: 2000, toastId: 'approve' });
+            const tokenContract = new Contract(depositCurrency, MockERC20ABI, signer);
+            const approveTx = await tokenContract.approve(ADDRESSES.VeilBook, parsedAmount);
+            await approveTx.wait();
+            console.log({approveTx});
+            toast.dismiss('approve');
+
+            
+
+            // 2. Deposit to Protocol
+            toast.info(`Depositing ${depositSymbol} to protocol...`, { autoClose: 2000, toastId: 'deposit' });
+            const depositTx = await veilBook.deposit(getPoolKeyOnly(poolMeta), depositCurrency, parsedAmount);
+            await depositTx.wait();
+            toast.dismiss('deposit');
+
+            // 3. Set Operator on Encrypted Token
+            toast.info("Approving Zama encrypted operator...", { autoClose: 2000, toastId: 'operator' });
+           
             const encTokenContract = new Contract(encTokenAddr, EncryptedERC20ABI, signer);
             const until = Math.floor(Date.now() / 1000) + 3600; // valid for 1 hour
 
-            const approveTx = await encTokenContract.setOperator(ADDRESSES.VeilBook, until);
-            await approveTx.wait();
+            const operatorTx = await encTokenContract.setOperator(ADDRESSES.VeilBook, BigInt(until));
+            await operatorTx.wait();
+            toast.dismiss('operator');
 
-            // 2. Encrypt input amount using Zama SDK
-            toast.info("Encrypting order amount privately...", { autoClose: 2000 });
+            // 4. Encrypt input amount using Zama SDK
+            toast.info("Encrypting order amount privately...", { autoClose: 2000, toastId: 'encrypt' });
             const encryptedInput = await fhe.createEncryptedInput(ADDRESSES.VeilBook, address)
                 .add64(parsedAmount)
                 .encrypt();
+            toast.dismiss('encrypt');
 
-            // 3. Place Order
-            toast.info("Submitting order to network...", { autoClose: 3000 });
+            console.log("VeilBook:", ADDRESSES.VeilBook);
+console.log("userAddress:", address);
+console.log("parsedAmount:", parsedAmount.toString());
+
+            // 5. Place Order
+            toast.info("Submitting order to network...", { autoClose: 3000, toastId: 'place' });
             const tx = await veilBook.placeOrder(
                 getPoolKeyOnly(poolMeta),
-                inputTick,
+                targetTick,
                 zeroForOne,
                 encryptedInput.handles[0],
                 encryptedInput.inputProof
             );
 
             await tx.wait();
-            toast.success("Order placed successfully! Confidential amount hidden from mempool.");
+            toast.dismiss('place');
+            toast.success(
+                <a href={`https://sepolia.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 underline underline-offset-4 decoration-white/30 hover:decoration-white transition-all">
+                  Order placed! View on Etherscan <ExternalLink className="h-3 w-3" />
+                </a>,
+                { autoClose: 10000 }
+            );
 
             // reset
             setAmountContent("");
         } catch (error: any) {
             console.error("Order error:", error);
+            toast.dismiss('approve');
+            toast.dismiss('deposit');
+            toast.dismiss('operator');
+            toast.dismiss('encrypt');
+            toast.dismiss('place');
             toast.error(error?.reason || error?.message || "Failed to place order");
         } finally {
             setPlacingOrder(false);
@@ -184,21 +223,21 @@ export default function TradePage() {
                         </button>
                     </div>
 
-                    {/* Tick Input */}
+                    {/* Price Input */}
                     <div className="space-y-3">
                         <div className="flex justify-between items-baseline">
-                            <label className="text-xs uppercase tracking-wider text-zinc-500 font-bold ml-1">Limit Tick</label>
-                            <span className="text-[10px] text-zinc-600 font-mono">Mult. of 60</span>
+                            <label className="text-xs uppercase tracking-wider text-zinc-500 font-bold ml-1">Limit Price</label>
+                            <span className="text-[10px] text-zinc-600 font-mono">Converted to Tick</span>
                         </div>
                         <div className="relative">
                             <input
                                 type="number"
-                                value={tickContent}
-                                onChange={(e) => setTickContent(e.target.value)}
-                                placeholder="60"
+                                value={priceContent}
+                                onChange={(e) => setPriceContent(e.target.value)}
+                                placeholder="1.0"
                                 className="w-full bg-black/60 border border-zinc-800 text-white p-4 rounded-xl focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/50 transition-colors font-mono text-lg"
                             />
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 text-xs font-mono">TICK</div>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 text-xs font-mono">{poolMeta.currency0Symbol} / {poolMeta.currency1Symbol}</div>
                         </div>
                     </div>
 
@@ -229,7 +268,7 @@ export default function TradePage() {
                     {/* Expected output direction helper */}
                     <div className="flex items-center gap-2 bg-blue-500/5 border border-blue-500/10 p-4 rounded-xl text-sm text-zinc-400">
                         <AlertCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                        <p>You are swapping <span className="text-blue-400 font-semibold">{inputSymbol}</span> for <span className="text-blue-400 font-semibold">{outputSymbol}</span>. Only the exact limit tick will execute.</p>
+                        <p>You are swapping <span className="text-blue-400 font-semibold">{inputSymbol}</span> for <span className="text-blue-400 font-semibold">{outputSymbol}</span>. Only your specified limit price will execute.</p>
                     </div>
 
                     {/* Submit Button */}

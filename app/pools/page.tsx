@@ -292,8 +292,10 @@ export default function PoolsPage() {
              console.log({poolKey, params})
 
              toast.info("Approving tokens...", { autoClose: false, toastId: `approve-${liquidityModalPool}` });
-             await token0.approve(ADDRESSES.PoolModifyLiquidityTest, amount0);
-             await token1.approve(ADDRESSES.PoolModifyLiquidityTest, amount1);
+             const approve0 = await token0.approve(ADDRESSES.PoolModifyLiquidityTest, amount0);
+             await approve0.wait();
+             const approve1 = await token1.approve(ADDRESSES.PoolModifyLiquidityTest, amount1);
+             await approve1.wait();
              toast.dismiss(`approve-${liquidityModalPool}`);
 
             

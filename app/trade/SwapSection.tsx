@@ -1,7 +1,8 @@
 import { ArrowDownUp } from "lucide-react";
 import React, { useState } from "react";
-import { ADDRESSES, POOL_KEYS, PoolKeyKey, PoolSwapTestABI, MockERC20ABI } from "@/lib/constants";
+import { ADDRESSES, POOL_KEYS, PoolKeyKey, PoolSwapTestABI, MockERC20ABI, StateViewABI } from "@/lib/constants";
 import { BrowserProvider, Contract, ethers } from "ethers";
+import { computePoolId } from "@/lib/math";
 import { toast } from "react-toastify";
 import { useAccount } from "wagmi";
 
@@ -20,7 +21,48 @@ export function SwapSection({ selectedPool, setSelectedPool, zeroForOne, setZero
     const outputSymbol = zeroForOne ? poolMeta.currency1Symbol : poolMeta.currency0Symbol;
 
     const [amountIn, setAmountIn] = useState("");
+    const [amountOut, setAmountOut] = useState("");
     const [loading, setLoading] = useState(false);
+
+    // Sync function for Swap
+    const syncSwapAmounts = async (val: string, reverse: boolean = false) => {
+        if (!val || isNaN(Number(val))) {
+            setAmountOut("");
+            return;
+        }
+
+        try {
+            let provider;
+            if (typeof window !== "undefined" && window.ethereum) {
+                provider = new BrowserProvider(window.ethereum);
+            } else {
+                provider = new ethers.JsonRpcProvider("https://rpc.sepolia.org");
+            }
+            const stateView = new Contract(ADDRESSES.StateView, StateViewABI, provider);
+            const slot0 = await stateView.getSlot0(computePoolId(poolMeta));
+            const sqrtPriceX96 = BigInt(slot0.sqrtPriceX96);
+            const Q96 = BigInt(2) ** BigInt(96);
+
+            if (zeroForOne) {
+                // Token 0 -> Token 1
+                const a0 = ethers.parseUnits(val, poolMeta.currency0Decimals);
+                const a1 = (a0 * sqrtPriceX96 * sqrtPriceX96) / (Q96 * Q96);
+                setAmountOut(ethers.formatUnits(a1, poolMeta.currency1Decimals));
+            } else {
+                // Token 1 -> Token 0
+                const a1 = ethers.parseUnits(val, poolMeta.currency1Decimals);
+                const a0 = (a1 * Q96 * Q96) / (sqrtPriceX96 * sqrtPriceX96);
+                setAmountOut(ethers.formatUnits(a0, poolMeta.currency0Decimals));
+            }
+        } catch (e) {
+            console.error("Swap sync error", e);
+        }
+    };
+
+    // Trigger sync when relevant state changes
+    React.useEffect(() => {
+        syncSwapAmounts(amountIn);
+    }, [amountIn, zeroForOne, selectedPool]);
 
     // Assuming user's Sepolia PoolSwapTest router address here or letting it fail cleanly if missing
     // We will use ADDRESSES.PoolSwapTest later but fall back if it is undefined. See lib/constants.ts for placeholder.
@@ -72,7 +114,7 @@ export function SwapSection({ selectedPool, setSelectedPool, zeroForOne, setZero
             
             const params = {
                 zeroForOne,
-                amountSpecified: parsedAmount,
+                amountSpecified: -parsedAmount,
                 // Usually MIN_SQRT_PRICE+1 for zeroForOne=true, Max-1 for zeroForOne=false
                 // Using slippage protection bounds:
                 sqrtPriceLimitX96: zeroForOne 
@@ -84,6 +126,7 @@ export function SwapSection({ selectedPool, setSelectedPool, zeroForOne, setZero
                 takeClaims: false,
                 settleUsingBurn: false
             };
+            console.log({poolKey, params})
 
             const swapTx = await routerContract.swap(
                 poolKey,
@@ -135,7 +178,9 @@ export function SwapSection({ selectedPool, setSelectedPool, zeroForOne, setZero
                         <input 
                             type="number"
                             value={amountIn}
-                            onChange={(e) => setAmountIn(e.target.value)}
+                            onChange={(e) => {
+                                setAmountIn(e.target.value);
+                            }}
                             placeholder="0"
                             className="w-full bg-transparent text-white text-3xl font-mono focus:outline-none placeholder:text-zinc-600"
                         />
@@ -163,8 +208,9 @@ export function SwapSection({ selectedPool, setSelectedPool, zeroForOne, setZero
                         <input 
                             type="number"
                             disabled
+                            value={amountOut}
                             placeholder="0"
-                            className="w-full bg-transparent text-white text-3xl font-mono focus:outline-none placeholder:text-zinc-600 opacity-50"
+                            className="w-full bg-transparent text-white text-3xl font-mono focus:outline-none placeholder:text-zinc-600 opacity-70"
                         />
                         <button className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-xl transition-colors font-medium text-white border border-zinc-700 whitespace-nowrap">
                             {outputSymbol}
@@ -175,7 +221,7 @@ export function SwapSection({ selectedPool, setSelectedPool, zeroForOne, setZero
                 <button 
                     onClick={handleSwap}
                     disabled={loading}
-                    className="w-full mt-6 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold rounded-2xl transition-all border border-zinc-700 hover:text-white"
+                    className="w-full mt-4 flex items-center justify-center gap-2 py-4 px-4 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-white/20 hover:shadow-white/40"
                 >
                     {loading ? "Swapping..." : "Standard Swap"}
                 </button>

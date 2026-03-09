@@ -66,7 +66,7 @@ export const MockERC20ABI = [
 ] as const;
 
 export const EncryptedERC20ABI = [
-  "function setOperator(address operator, uint256 until) external"
+  "function setOperator(address operator, uint48 until) external"
 ] as const;
 
 export const PoolSwapTestABI = [
