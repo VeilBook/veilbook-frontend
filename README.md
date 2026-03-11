@@ -12,9 +12,9 @@ Live on **Sepolia Testnet** · Built with Zama fhEVM · Powered by Uniswap V4
 
 ##### Demo Link: https://veilbook-frontend.vercel.app/
 
-##### Demo Video: https://m.youtube.com/watch?v=u0KXpgzDdI8
+##### Demo Video: https://www.youtube.com/watch?v=gUeUnyODXbs
 
-[![Watch the video](https://img.youtube.com/vi/u0KXpgzDdI8/maxresdefault.jpg)](https://www.youtube.com/watch?v=u0KXpgzDdI8)
+[![Watch the video](https://img.youtube.com/vi/gUeUnyODXbs/maxresdefault.jpg)](https://www.youtube.com/watch?v=gUeUnyODXbs)
 
 
 
