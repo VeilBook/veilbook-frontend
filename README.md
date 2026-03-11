@@ -2,7 +2,7 @@
 
 > **Your limit orders. Nobody else's business.**
 
-VeilBook is a confidential limit order book built on Uniswap V4. It uses Fully Homomorphic Encryption (FHE) to keep your order sizes private — not just from other traders, but from validators, searchers, and the chain itself.
+VeilBook is a confidential limit order book built on Uniswap V4. It uses Fully Homomorphic Encryption (FHE) to keep your order sizes private — not just from other traders, but from searchers, and block builders.
 
 Live on **Sepolia Testnet** · Built with Zama fhEVM · Powered by Uniswap V4
 
