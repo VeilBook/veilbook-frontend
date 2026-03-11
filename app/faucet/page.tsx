@@ -65,7 +65,7 @@ export default function FaucetParams() {
             toast.info(`Minting 1000 ${symbol}... Please wait.`);
             await tx.wait();
             
-            toast.success(`Successfully minted 1000 ${symbol}!`);
+            toast.success(`Successfully minted 100k ${symbol}!`);
             await fetchBalances(); // refresh balance
         } catch (error: any) {
             console.error(`Mint error for ${symbol}:`, error);
