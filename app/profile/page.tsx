@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { ethers, BrowserProvider, Contract } from "ethers";
 import { useAccount } from "wagmi";
 import { toast } from "react-toastify";
-import { ADDRESSES, VeilBookABI } from "@/lib/constants";
+import { ADDRESSES, VeilBookABI, MockERC20ABI } from "@/lib/constants";
 import { useFhe } from "@/components/FheProvider";
 import { ListChecks, XCircle, DownloadCloud, Unlock, Lock } from "lucide-react";
 
@@ -18,6 +18,13 @@ interface OrderData {
     filledIn: any;
     filledOut: any;
     timestamp: number;
+    token0Symbol: string;
+    token1Symbol: string;
+}
+
+// format raw 6-decimal amount to 1 decimal place e.g. 1000000 → "1.0"
+function formatAmount(raw: number): string {
+    return (raw / 1_000_000).toFixed(1);
 }
 
 export default function OrdersPage() {
@@ -39,7 +46,6 @@ export default function OrdersPage() {
             const provider = new BrowserProvider(window.ethereum);
             const contract = new Contract(ADDRESSES.VeilBook, VeilBookABI, provider);
 
-            // use getUserOrders — no event filtering, no block range issues
             const orderIds: string[] = await contract.getUserOrders(address);
 
             if (orderIds.length === 0) {
@@ -47,8 +53,28 @@ export default function OrdersPage() {
                 return;
             }
 
+            // symbol cache to avoid duplicate calls for same token address
+            const symbolCache: Record<string, string> = {};
+            const getSymbol = async (tokenAddress: string): Promise<string> => {
+                const key = tokenAddress.toLowerCase();
+                if (symbolCache[key]) return symbolCache[key];
+                try {
+                    const token = new Contract(tokenAddress, MockERC20ABI, provider);
+                    const sym = await token.symbol();
+                    symbolCache[key] = sym;
+                    return sym;
+                } catch {
+                    return "TOKEN";
+                }
+            };
+
             const orderPromises = orderIds.map(async (id: string) => {
                 const data = await contract.getOrder(id);
+
+                // data.key is the PoolKey struct returned from the updated getOrder
+                const token0Symbol = await getSymbol(data.poolKey.currency0);
+                const token1Symbol = await getSymbol(data.poolKey.currency1);
+
                 return {
                     orderId: id,
                     tick: Number(data.tick),
@@ -59,6 +85,8 @@ export default function OrdersPage() {
                     filledIn: data.filledIn,
                     filledOut: data.filledOut,
                     timestamp: Date.now(),
+                    token0Symbol,
+                    token1Symbol,
                 } as OrderData;
             });
 
@@ -91,23 +119,16 @@ export default function OrdersPage() {
             const provider = new BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
 
-            // const filledInHandle = order.filledIn;
-            // const filledOutHandle = order.filledOut;
-
             const filledInHandle = "0x" + BigInt(order.filledIn).toString(16).padStart(64, "0");
-const filledOutHandle = "0x" + BigInt(order.filledOut).toString(16).padStart(64, "0");
+            const filledOutHandle = "0x" + BigInt(order.filledOut).toString(16).padStart(64, "0");
 
             console.log("filledInHandle:", filledInHandle);
             console.log("filledOutHandle:", filledOutHandle);
-            let valIn = BigInt(0);
-            let valOut = BigInt(0);
 
             const handleContractPairs = [
                 { handle: filledInHandle, contractAddress: ADDRESSES.VeilBook },
                 { handle: filledOutHandle, contractAddress: ADDRESSES.VeilBook },
             ];
-
-            console.log("handleContractPairs:", handleContractPairs);
 
             const keypair = fhe.generateKeypair();
             const startTimeStamp = Math.floor(Date.now() / 1000).toString();
@@ -141,21 +162,14 @@ const filledOutHandle = "0x" + BigInt(order.filledOut).toString(16).padStart(64,
 
             console.log("decrypt result:", result);
 
-            // use handle directly as key — same pattern as working sample code
-
-      
-            valIn = result[filledInHandle] as bigint;
-            valIn = BigInt(result[filledInHandle]);
-            valOut = result[filledOutHandle] as bigint;
-            valOut = BigInt(result[filledOutHandle]);
-            console.log("valIn:", valIn);
-            console.log("valOut:", valOut);
+            const valIn = BigInt(result[filledInHandle]);
+            const valOut = BigInt(result[filledOutHandle]);
 
             setDecryptedValues(prev => ({
                 ...prev,
-                [order.orderId]: { 
-                    filledIn: Number(valIn), 
-                    filledOut: Number(valOut) 
+                [order.orderId]: {
+                    filledIn: Number(valIn),
+                    filledOut: Number(valOut)
                 }
             }));
 
@@ -184,7 +198,7 @@ const filledOutHandle = "0x" + BigInt(order.filledOut).toString(16).padStart(64,
             const contract = new Contract(ADDRESSES.VeilBook, VeilBookABI, signer);
 
             const assumedOriginalAmount = prompt(
-                `You have ${decrypted.filledIn} filled so far.\nWhat was your original total deposit amount?\n(Enter raw integer, e.g. 1000000 for 1 token with 6 decimals)`
+                `You have ${formatAmount(decrypted.filledIn)} filled so far.\nWhat was your original total deposit amount?\n(Enter raw integer, e.g. 1000000 for 1 token with 6 decimals)`
             );
 
             if (!assumedOriginalAmount) {
@@ -279,6 +293,11 @@ const filledOutHandle = "0x" + BigInt(order.filledOut).toString(16).padStart(64,
                         const dec = decryptedValues[order.orderId];
                         const isActionDisabled = actionLoading !== null;
 
+                        // zeroForOne=true  (SELL) → spent token0, received USDC (token1)
+                        // zeroForOne=false (BUY)  → spent USDC (token1), received token0
+                        const filledInCurrency = order.zeroForOne ? order.token0Symbol : order.token1Symbol;
+                        const filledOutCurrency = order.zeroForOne ? order.token1Symbol : order.token0Symbol;
+
                         return (
                             <div
                                 key={order.orderId}
@@ -313,7 +332,10 @@ const filledOutHandle = "0x" + BigInt(order.filledOut).toString(16).padStart(64,
                                     <div className="bg-black/40 border border-zinc-800 p-3 rounded-xl w-full text-center">
                                         <div className="text-[10px] uppercase text-zinc-500 font-bold mb-1">Filled In</div>
                                         {isDecrypted ? (
-                                            <div className="font-mono text-white text-lg">{dec?.filledIn}</div>
+                                            <div className="flex items-baseline justify-center gap-1.5">
+                                                <span className="font-mono text-white text-lg">{formatAmount(dec?.filledIn ?? 0)}</span>
+                                                <span className="text-[10px] uppercase font-bold text-zinc-400">{filledInCurrency}</span>
+                                            </div>
                                         ) : (
                                             <div className="flex items-center justify-center text-zinc-600 gap-1 mt-1 font-mono text-sm py-0.5 px-2 bg-zinc-900 rounded">
                                                 <Lock className="w-3 h-3" /> Encrypted
@@ -323,7 +345,10 @@ const filledOutHandle = "0x" + BigInt(order.filledOut).toString(16).padStart(64,
                                     <div className="bg-black/40 border border-zinc-800 p-3 rounded-xl w-full text-center">
                                         <div className="text-[10px] uppercase text-zinc-500 font-bold mb-1">Filled Out</div>
                                         {isDecrypted ? (
-                                            <div className="font-mono text-emerald-400 text-lg">{dec?.filledOut}</div>
+                                            <div className="flex items-baseline justify-center gap-1.5">
+                                                <span className="font-mono text-emerald-400 text-lg">{formatAmount(dec?.filledOut ?? 0)}</span>
+                                                <span className="text-[10px] uppercase font-bold text-zinc-400">{filledOutCurrency}</span>
+                                            </div>
                                         ) : (
                                             <div className="flex items-center justify-center text-zinc-600 gap-1 mt-1 font-mono text-sm py-0.5 px-2 bg-zinc-900 rounded">
                                                 <Lock className="w-3 h-3" /> Encrypted

@@ -26,7 +26,7 @@ export const VeilBookABI = [
   "function claimFill(bytes32 orderId, uint64 plaintextFilled)",
   // view functions
   "function getUserOrders(address user) view returns (bytes32[])",
-  "function getOrder(bytes32 orderId) view returns (address owner, int24 tick, bool zeroForOne, bool active, uint256 amountIn, uint256 amountOut, uint256 filledIn, uint256 filledOut)",
+  "function getOrder(bytes32 orderId) view returns (address owner, int24 tick, bool zeroForOne, bool active, uint256 amountIn, uint256 amountOut, uint256 filledIn, uint256 filledOut, tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey)",
   "function getOrderCount(bytes32 poolId, int24 tick, bool zeroForOne) view returns (uint256)",
   "function getEncryptedToken(bytes32 poolId, address currency) view returns (address)",
   "function getScaledPriceAtTick(int24 tick, bool zeroForOne) pure returns (uint256 scaledPrice)",
@@ -77,32 +77,42 @@ export const PoolModifyLiquidityTestABI = [
   "function modifyLiquidity(tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) key, tuple(int24 tickLower, int24 tickUpper, int256 liquidityDelta, bytes32 salt) params, bytes hookData) payable returns (int128, int128)",
 ] as const;
 
+
+
+
+
+////////////////////
+
+
+
+
 // -- Addresses --
 
+
 export const ADDRESSES = {
-  PoolManager: "0x1F6531C33e88d7eA0DfF8eAB7cBDbB19d64C6e20",
-  VeilBook: "0x203090B459Ce722f9F6467BC658F64B907e3D040",
-  StateView: "0xE8571687a980f6a015BF0702A5eC88BFEd1E0cd6",
-  PoolSwapTest: "0xe43d6526B99833116f00A509203f960cA0E1bDAD",
-  PoolModifyLiquidityTest: "0xD790fFED3E859F2d765F34923CDC232167727390", 
+  PoolManager: "0x19380Fd31d8044fB3349d9eaEFfF779Bf41f885D",
+  VeilBook: "0x67CbE7937E20Af24fBcc8Be354A5b4B5601D5040",
+  StateView: "0x626927daBdcff58d87643b666B65ce05ac85E9CA",
+  PoolSwapTest: "0xEF02dEC3B6E81850974A39c7B18a9fB1BB5b1758",
+  PoolModifyLiquidityTest: "0x03361fA440BACEDCd807B7D419AA83865Abed9ee", 
   Tokens: {
-    USDC: "0xfF4E6B5c3583adb51512E9f8e6C5808F50ec07bc",
-    NBL: "0xFf2B8F49B569c625eC2c271765dE2418b8506ACE",
-    SLR: "0x84F8df19803B636f27a3947fD4D0c1b51C166426",
-    ATH: "0xa446cCB04E2B78Eb2cfC5B3e6b5960f90C3fE124",
-    VTX: "0xE9364b7510bd60A76F26718cF307150466C71516",
-    ZTA: "0xff2eF9147391742aca9937cf0F39D63E0C18a668",
+    USDC: "0xFf191a477C6aa6e0d0176Ed9711c6A66a68a510d",
+    NBL: "0x5EDB776E0e8324609276De545118E5f4ef0e820B",
+    SLR: "0x2f1b32866FFF6c5c48324806A94a3766cF69861D",
+    ATH: "0x3dC4270317C33873538EfBE05F22711F33187FEa",
+    VTX: "0x3C8330c0A975b77bc9d809b75d32ACee49C64cc9",
+    ZTA: "0xBce34969854a0950788f248D18B997b8b05798F9",
   }
 } as const;
 
 
 export const POOL_KEYS = {
   NBL_USDC: {
-    currency0: "0xFf2B8F49B569c625eC2c271765dE2418b8506ACE",  // NBL
-    currency1: "0xfF4E6B5c3583adb51512E9f8e6C5808F50ec07bc",  // USDC
+    currency0: "0x5EDB776E0e8324609276De545118E5f4ef0e820B",  // NBL
+    currency1: "0xFf191a477C6aa6e0d0176Ed9711c6A66a68a510d",  // USDC
     fee: 3000,
     tickSpacing: 60,
-    hooks: "0x203090B459Ce722f9F6467BC658F64B907e3D040",
+    hooks: "0x67CbE7937E20Af24fBcc8Be354A5b4B5601D5040",
     label: "NBL/USDC",
     currency0Symbol: "NBL",
     currency1Symbol: "USDC",
@@ -110,11 +120,11 @@ export const POOL_KEYS = {
     currency1Decimals: 6,
   },
   SLR_USDC: {
-    currency0: "0x84F8df19803B636f27a3947fD4D0c1b51C166426",  // SLR
-    currency1: "0xfF4E6B5c3583adb51512E9f8e6C5808F50ec07bc",  // USDC
+    currency0: "0x2f1b32866FFF6c5c48324806A94a3766cF69861D",  // SLR
+    currency1: "0xFf191a477C6aa6e0d0176Ed9711c6A66a68a510d",  // USDC
     fee: 3000,
     tickSpacing: 60,
-    hooks: "0x203090B459Ce722f9F6467BC658F64B907e3D040",
+    hooks: "0x67CbE7937E20Af24fBcc8Be354A5b4B5601D5040",
     label: "SLR/USDC",
     currency0Symbol: "SLR",
     currency1Symbol: "USDC",
@@ -122,11 +132,11 @@ export const POOL_KEYS = {
     currency1Decimals: 6,
   },
   ATH_USDC: {
-    currency0: "0xa446cCB04E2B78Eb2cfC5B3e6b5960f90C3fE124",  // ATH
-    currency1: "0xfF4E6B5c3583adb51512E9f8e6C5808F50ec07bc",  // USDC
+    currency0: "0x3dC4270317C33873538EfBE05F22711F33187FEa",  // ATH
+    currency1: "0xFf191a477C6aa6e0d0176Ed9711c6A66a68a510d",  // USDC
     fee: 3000,
     tickSpacing: 60,
-    hooks: "0x203090B459Ce722f9F6467BC658F64B907e3D040",
+    hooks: "0x67CbE7937E20Af24fBcc8Be354A5b4B5601D5040",
     label: "ATH/USDC",
     currency0Symbol: "ATH",
     currency1Symbol: "USDC",
@@ -134,11 +144,11 @@ export const POOL_KEYS = {
     currency1Decimals: 6,
   },
   VTX_USDC: {
-    currency0: "0xE9364b7510bd60A76F26718cF307150466C71516",  // VTX
-    currency1: "0xfF4E6B5c3583adb51512E9f8e6C5808F50ec07bc",  // USDC
+    currency0: "0x3C8330c0A975b77bc9d809b75d32ACee49C64cc9",  // VTX
+    currency1: "0xFf191a477C6aa6e0d0176Ed9711c6A66a68a510d",  // USDC
     fee: 3000,
     tickSpacing: 60,
-    hooks: "0x203090B459Ce722f9F6467BC658F64B907e3D040",
+    hooks: "0x67CbE7937E20Af24fBcc8Be354A5b4B5601D5040",
     label: "VTX/USDC",
     currency0Symbol: "VTX",
     currency1Symbol: "USDC",
@@ -146,11 +156,11 @@ export const POOL_KEYS = {
     currency1Decimals: 6,
   },
   ZTA_USDC: {
-    currency0: "0xff2eF9147391742aca9937cf0F39D63E0C18a668",  // ZTA
-    currency1: "0xfF4E6B5c3583adb51512E9f8e6C5808F50ec07bc",  // USDC
+    currency0: "0xBce34969854a0950788f248D18B997b8b05798F9",  // ZTA
+    currency1: "0xFf191a477C6aa6e0d0176Ed9711c6A66a68a510d",  // USDC
     fee: 3000,
     tickSpacing: 60,
-    hooks: "0x203090B459Ce722f9F6467BC658F64B907e3D040",
+    hooks: "0x67CbE7937E20Af24fBcc8Be354A5b4B5601D5040",
     label: "ZTA/USDC",
     currency0Symbol: "ZTA",
     currency1Symbol: "USDC",

@@ -111,16 +111,18 @@ export default function TradePage() {
             toast.info(`Depositing ${depositSymbol} to protocol...`, { autoClose: 2000, toastId: 'deposit' });
             const depositTx = await veilBook.deposit(getPoolKeyOnly(poolMeta), depositCurrency, parsedAmount);
             await depositTx.wait();
+            console.log({depositTx});
             toast.dismiss('deposit');
 
             // 3. Set Operator on Encrypted Token
             toast.info("Approving Zama encrypted operator...", { autoClose: 2000, toastId: 'operator' });
            
             const encTokenContract = new Contract(encTokenAddr, EncryptedERC20ABI, signer);
-            const until = Math.floor(Date.now() / 1000) + 3600; // valid for 1 hour
+            const until = Math.floor(Date.now() / 1000) + 7000; 
 
             const operatorTx = await encTokenContract.setOperator(ADDRESSES.VeilBook, BigInt(until));
             await operatorTx.wait();
+            console.log({operatorTx});
             toast.dismiss('operator');
 
             // 4. Encrypt input amount using Zama SDK
@@ -131,8 +133,14 @@ export default function TradePage() {
             toast.dismiss('encrypt');
 
             console.log("VeilBook:", ADDRESSES.VeilBook);
-console.log("userAddress:", address);
-console.log("parsedAmount:", parsedAmount.toString());
+            console.log("userAddress:", address);
+            console.log("parsedAmount:", parsedAmount.toString());
+
+            // small buffer for Zama gateway to register the ciphertext
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+
+            
 
             // 5. Place Order
             toast.info("Submitting order to network...", { autoClose: 3000, toastId: 'place' });
@@ -145,6 +153,7 @@ console.log("parsedAmount:", parsedAmount.toString());
             );
 
             await tx.wait();
+            console.log({tx});
             toast.dismiss('place');
             toast.success(
                 <a href={`https://sepolia.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 underline underline-offset-4 decoration-white/30 hover:decoration-white transition-all">
