@@ -94,9 +94,7 @@ export default function TradePage() {
             const parsedAmount = ethers.parseUnits(amount.toString(), inputDecimals);
 
             const poolId = computePoolId(poolMeta);
-            const encTokenAddr = await veilBook.getEncryptedToken(poolId, depositCurrency);
-            console.log({encTokenAddr, depositCurrency});
-
+            
             // 1. Approve Token to Protocol
             toast.info(`Approving ${depositSymbol}...`, { autoClose: 2000, toastId: 'approve' });
             const tokenContract = new Contract(depositCurrency, MockERC20ABI, signer);
@@ -114,6 +112,9 @@ export default function TradePage() {
             console.log({depositTx});
             toast.dismiss('deposit');
 
+            const encTokenAddr = await veilBook.getEncryptedToken(poolId, depositCurrency);
+            console.log({encTokenAddr, depositCurrency});
+
             // 3. Set Operator on Encrypted Token
             toast.info("Approving Zama encrypted operator...", { autoClose: 2000, toastId: 'operator' });
            
@@ -124,6 +125,10 @@ export default function TradePage() {
             await operatorTx.wait();
             console.log({operatorTx});
             toast.dismiss('operator');
+
+            console.log("encTokenAddr:", encTokenAddr);
+console.log("until:", until, "now:", Math.floor(Date.now() / 1000));
+console.log("setOperator target:", encTokenAddr, "operator:", ADDRESSES.VeilBook);
 
             // 4. Encrypt input amount using Zama SDK
             toast.info("Encrypting order amount privately...", { autoClose: 2000, toastId: 'encrypt' });

@@ -8,6 +8,16 @@ Live on **Sepolia Testnet** · Built with Zama fhEVM · Powered by Uniswap V4
 
 ---
 
+### Demo Live Link: 
+
+##### Demo Link: https://veilbook-frontend.vercel.app/
+
+##### Demo Video: https://m.youtube.com/watch?v=u0KXpgzDdI8
+
+[![Watch the video](https://img.youtube.com/vi/u0KXpgzDdI8/maxresdefault.jpg)](https://www.youtube.com/watch?v=u0KXpgzDdI8)
+
+
+
 ## The Problem
 
 Every limit order on a standard DEX is public. Anyone can see your order size, your price, and your wallet. MEV bots exploit this to front-run, sandwich, and extract value from your trades before they even execute.

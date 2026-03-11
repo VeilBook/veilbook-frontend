@@ -40,7 +40,9 @@ export const MockERC20ABI = [
     "function claimFill(bytes32 orderId, uint64 plaintextFilled)",
     // view functions
     "function getUserOrders(address user) view returns (bytes32[])",
-    "function getOrder(bytes32 orderId) view returns (address owner, int24 tick, bool zeroForOne, bool active, uint256 amountIn, uint256 amountOut, uint256 filledIn, uint256 filledOut)",
+
+    "function getOrder(bytes32 orderId) view returns (address owner, int24 tick, bool zeroForOne, bool active, uint256 amountIn, uint256 amountOut, uint256 filledIn, uint256 filledOut, tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey)",
+
     "function getOrderCount(bytes32 poolId, int24 tick, bool zeroForOne) view returns (uint256)",
     "function getEncryptedToken(bytes32 poolId, address currency) view returns (address)",
     "function getScaledPriceAtTick(int24 tick, bool zeroForOne) pure returns (uint256 scaledPrice)",
