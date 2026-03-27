@@ -1,5 +1,11 @@
 # VeilBook
 
+This project is submitted as part of Veilbook.  
+It consists of two repositories:
+
+1. **Main Repo (this one)** 
+2. **Contract Repo** – https://github.com/VeilBook/veilbook-contract
+
 > **Your limit orders. Nobody else's business.**
 
 VeilBook is a confidential limit order book built on Uniswap V4. It uses Fully Homomorphic Encryption (FHE) to keep your order sizes private — not just from other traders, but from searchers, and block builders.
