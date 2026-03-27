@@ -3,7 +3,7 @@
 This project is submitted as part of Veilbook.  
 It consists of two repositories:
 
-1. **Main Repo (this one)** 
+1. **Frontend Repo (this one)** 
 2. **Contract Repo** – https://github.com/VeilBook/veilbook-contract
 
 > **Your limit orders. Nobody else's business.**
